@@ -1,0 +1,4 @@
+celery -A tasks worker --loglevel=info
+flask run
+
+on /flask
