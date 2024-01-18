@@ -2,10 +2,11 @@ from celery import Celery
 import pandas as pd
 from pandas.errors import EmptyDataError
 import os
-import time
+import time 
 # from filelock import FileLock
 from threading import Thread, Lock, Event
 from multiprocessing import Lock as multiprocessingLock
+from multiprocessing import Manager
 from datetime import datetime, timedelta
 
 BROKER_URL = 'redis://localhost:6379/0'
@@ -13,11 +14,12 @@ BACKEND_URL = 'redis://localhost:6379/1'
 
 app = Celery('tasks', broker=BROKER_URL, backend=BACKEND_URL)
 
-buffered_user_active_rows = []
+manager = Manager()
+buffered_user_active_rows = manager.list()
 buffered_user_active_lock = multiprocessingLock()
 
 
-buffered_user_click_rows = []
+buffered_user_click_rows = manager.list()
 buffered_user_click_lock = multiprocessingLock()
 
 
@@ -101,7 +103,7 @@ def logUserActive(data):
     # for item in data:
     #     item['timestamp'] = pd.to_datetime(item['timestamp'])
     # data['timestamp'] = pd.to_datetime(data['timestamp'])
-    new_row = pd.DataFrame(data, columns=['user_id', 'timestamp'])
+    new_row = pd.DataFrame(list(data), columns=['user_id', 'timestamp'])
 
     current_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -132,7 +134,7 @@ def logClick(data):
     # for item in data:
     #     item['timestamp'] = pd.to_datetime(item['timestamp'])
     # data['timestamp'] = pd.to_datetime(data['timestamp'])
-    new_row = pd.DataFrame(data, columns=['user_id', 'timestamp', 'cctv_location'])
+    new_row = pd.DataFrame(list(data), columns=['user_id', 'timestamp', 'cctv_location'])
 
     current_date = datetime.now().strftime('%Y-%m-%d')
 
