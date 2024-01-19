@@ -122,9 +122,26 @@ def logUserActive(data):
             
             expected_headers = ['user_id', 'timestamp']
             if all(header in existing_df.columns for header in expected_headers):
-                existing_df = pd.concat([existing_df, new_row], ignore_index=True)
+                # existing_df = pd.concat([existing_df, new_row], ignore_index=True)
+                # existing_df.to_csv(csv_file_path, index=False)
+
+                ######## added filtering
+
+                target_user_ids = list(set([item['user_id'] for item in data]))
+                current_timestamp = datetime.now()
+
+                existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
+
+                minutes_ago = current_timestamp - timedelta(minutes=1)
                 
-                existing_df.to_csv(csv_file_path, index=False)
+                query = f"user_id in {target_user_ids} and timestamp > '{minutes_ago}'"
+            
+                result_df = existing_df.query(query)
+
+                if result_df.empty:
+                    existing_df = pd.concat([existing_df, new_row], ignore_index=True)
+                    
+                    existing_df.to_csv(csv_file_path, index=False)
                 
             else:
                 os.remove(csv_file_path)

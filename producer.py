@@ -22,8 +22,8 @@ def generate_user_active_log():
     global totalUserActive
     # while True:
     for i in range(10001):
-        # user_id = f"user-{random.randint(1, 50)}"
-        user_id = f"user-{totalUserActive}"
+        user_id = f"user-{random.randint(1, 50)}"
+        # user_id = f"user-{totalUserActive}"
         current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
         json_data = {
