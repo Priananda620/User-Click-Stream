@@ -45,6 +45,8 @@ def queue_click(data):
             if not existing_data_condition:
                 data['timestamp'] = pd.to_datetime(data['timestamp'])
                 buffered_user_click_rows.append(data)
+            else:
+                print(f'-------IS EXIST------')
 
         print(f"clicks total : {len(buffered_user_click_rows)}")
         

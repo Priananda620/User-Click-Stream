@@ -5,8 +5,8 @@ from kafka import KafkaProducer
 import time
 import threading
 
-bootstrap_servers = ['172.27.16.1:9092']
-
+# bootstrap_servers = ['172.27.16.1:9092']
+bootstrap_servers = ['10.13.111.40:9092']
 producer = KafkaProducer(bootstrap_servers=bootstrap_servers, value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 
 local_data = []
@@ -17,8 +17,8 @@ totalUserActive = 0
 def generate_click_messages(thread_id, topicName):
     global totalClicks
     while True:
-        # user_id = f"user-{random.randint(1, 50)}"
-        user_id = f"user-{totalClicks}"
+        user_id = f"user-{random.randint(1, 50)}"
+        # user_id = f"user-{totalClicks}"
         current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         cctv_location = f"CCTV-{random.randint(1, 50)}"
 
@@ -34,15 +34,15 @@ def generate_click_messages(thread_id, topicName):
         totalClicks += 1
         print(f"[{current_timestamp}] ({totalClicks}) clicks | T{thread_id}")
 
-        # delay = random.randint(2000, 2000) / 1000.0
+        # delay = random.randint(10, 80) / 1000.0
         # time.sleep(delay)
 
 def generate_user_active_log(thread_id, topicName):
     global totalUserActive
     while True:
 
-        # user_id = f"user-{random.randint(1, 50)}"
-        user_id = f"user-{totalUserActive}"
+        user_id = f"user-{random.randint(1, 50)}"
+        # user_id = f"user-{totalUserActive}"
         current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
         json_data = {
@@ -56,7 +56,7 @@ def generate_user_active_log(thread_id, topicName):
         totalUserActive += 1
         print(f"[{current_timestamp}] ({totalUserActive}) user_active_log | T{thread_id}")
 
-        # delay = random.randint(500, 500) / 1000.0
+        # delay = random.randint(10, 80) / 1000.0
         # time.sleep(delay)
 
 
@@ -67,10 +67,10 @@ thread2_clicks = threading.Thread(target=generate_click_messages, args=(2,'click
 
 thread1_usrActiveLog.start()
 thread2_usrActiveLog.start()
-# thread1_clicks.start()
-# thread2_clicks.start()
+thread1_clicks.start()
+thread2_clicks.start()
 
 thread1_usrActiveLog.join()
 thread2_usrActiveLog.join()
-# thread1_clicks.join()
-# thread2_clicks.join()
+thread1_clicks.join()
+thread2_clicks.join()
