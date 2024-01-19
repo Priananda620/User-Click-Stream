@@ -83,6 +83,8 @@ def queue_user_active_log(data):
             if not existing_data_condition:
                 data['timestamp'] = pd.to_datetime(data['timestamp'])
                 buffered_user_active_rows.append(data)
+            else:
+                print(f'-------IS EXIST------')
 
         print(f"active total : {len(buffered_user_active_rows)}")
 
