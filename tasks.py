@@ -118,6 +118,7 @@ def logUserActive(data):
     csv_file_path = f'data/user_active_log/{current_date}.csv'
 
     if os.path.isfile(csv_file_path):
+        print('---- EXIST FILE 0 ----')
         try:
             existing_df = pd.read_csv(csv_file_path)
             
@@ -154,6 +155,7 @@ def logUserActive(data):
             df = new_row
             df.to_csv(csv_file_path, index=False)
     else:
+        print('---- NOT EXIST FILE 0 ----')
         df = new_row
         df.to_csv(csv_file_path, index=False)
 
@@ -169,6 +171,7 @@ def logClick(data):
     csv_file_path = f'data/user_clicks/{current_date}.csv'
 
     if os.path.isfile(csv_file_path):
+        print('---- EXIST FILE 1 ----')
         try:
             # Try reading the existing CSV file
             existing_df = pd.read_csv(csv_file_path)
@@ -212,6 +215,7 @@ def logClick(data):
             df = new_row
             df.to_csv(csv_file_path, index=False)
     else:
+        print('---- NOT EXIST FILE 1 ----')
         # If the CSV file does not exist, create a new file with the new row
         df = new_row
         df.to_csv(csv_file_path, index=False)
