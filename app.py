@@ -4,7 +4,7 @@ from kafka import KafkaConsumer
 import json
 from redis import Redis
 import pandas as pd
-from tasks import queue_click, queue_user_active_log
+from tasks import queue_click, queue_user_active_log, start_buffer_threads
 from celery import Celery
 import threading
 
@@ -53,7 +53,7 @@ def kafka_consumer_user_active_task():
 def status():
     return jsonify({'message': 'CSV writing process is running.'})
 
-# start_buffer_threads.delay()
+start_buffer_threads.delay()
 
 kafka_thread_clicks = threading.Thread(target=kafka_consumer_click_task)
 kafka_user_active = threading.Thread(target=kafka_consumer_user_active_task)

@@ -45,6 +45,11 @@ def queue_click(data):
             if not existing_data_condition:
                 data['timestamp'] = pd.to_datetime(data['timestamp'])
                 buffered_user_click_rows.append(data)
+            else:
+                print(f'------- BUFFER IS EXIST ------')
+            ###########
+            # data['timestamp'] = pd.to_datetime(data['timestamp'])
+            # buffered_user_click_rows.append(data)
 
         print(f"clicks total : {len(buffered_user_click_rows)}")
         
@@ -81,6 +86,11 @@ def queue_user_active_log(data):
             if not existing_data_condition:
                 data['timestamp'] = pd.to_datetime(data['timestamp'])
                 buffered_user_active_rows.append(data)
+            else:
+                print(f'-------IS EXIST------')
+            ############
+            # data['timestamp'] = pd.to_datetime(data['timestamp'])
+            # buffered_user_active_rows.append(data)
 
         print(f"active total : {len(buffered_user_active_rows)}")
 
@@ -108,14 +118,34 @@ def logUserActive(data):
     csv_file_path = f'data/user_active_log/{current_date}.csv'
 
     if os.path.isfile(csv_file_path):
+        print('---- EXIST FILE 0 ----')
         try:
             existing_df = pd.read_csv(csv_file_path)
             
             expected_headers = ['user_id', 'timestamp']
             if all(header in existing_df.columns for header in expected_headers):
-                existing_df = pd.concat([existing_df, new_row], ignore_index=True)
+                # existing_df = pd.concat([existing_df, new_row], ignore_index=True)
+                # existing_df.to_csv(csv_file_path, index=False)
+
+                ######## added filtering
+
+                target_user_ids = list(set([item['user_id'] for item in data]))
+                current_timestamp = datetime.now()
+
+                existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
+
+                minutes_ago = current_timestamp - timedelta(minutes=1)
                 
-                existing_df.to_csv(csv_file_path, index=False)
+                query = f"user_id in {target_user_ids} and timestamp > '{minutes_ago}'"
+            
+                result_df = existing_df.query(query)
+
+                if result_df.empty:
+                    existing_df = pd.concat([existing_df, new_row], ignore_index=True)
+                    
+                    existing_df.to_csv(csv_file_path, index=False)
+                else:
+                    print(f'------- IS EXIST CSV ------')
                 
             else:
                 os.remove(csv_file_path)
@@ -125,6 +155,7 @@ def logUserActive(data):
             df = new_row
             df.to_csv(csv_file_path, index=False)
     else:
+        print('---- NOT EXIST FILE 0 ----')
         df = new_row
         df.to_csv(csv_file_path, index=False)
 
@@ -140,6 +171,7 @@ def logClick(data):
     csv_file_path = f'data/user_clicks/{current_date}.csv'
 
     if os.path.isfile(csv_file_path):
+        print('---- EXIST FILE 1 ----')
         try:
             # Try reading the existing CSV file
             existing_df = pd.read_csv(csv_file_path)
@@ -170,6 +202,8 @@ def logClick(data):
                     existing_df = pd.concat([existing_df, new_row], ignore_index=True)
                     
                     existing_df.to_csv(csv_file_path, index=False)
+                else:
+                    print(f'------- IS EXIST CSV ------')
                 
             else:
                 # If headers don't match, create a new DataFrame with the new row
@@ -181,6 +215,7 @@ def logClick(data):
             df = new_row
             df.to_csv(csv_file_path, index=False)
     else:
+        print('---- NOT EXIST FILE 1 ----')
         # If the CSV file does not exist, create a new file with the new row
         df = new_row
         df.to_csv(csv_file_path, index=False)
@@ -195,7 +230,7 @@ def flush_buffer_thread(name, buffer, flush_function, flush_interval, lock):
                 flush_function(buffer)
                 buffer.clear()  # Clear the buffer after flushing
 
-# @app.task(name='buffer thread')
+@app.task(name='buffer thread')
 def start_buffer_threads():
     global buffered_user_click_rows, buffered_user_active_rows
     # Start a separate thread for flushing the user click buffer every 5 seconds

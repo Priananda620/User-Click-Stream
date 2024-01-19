@@ -5,8 +5,8 @@ from kafka import KafkaProducer
 import time
 
 # Define server with port
-# bootstrap_servers = ['172.27.16.1:9092']
-bootstrap_servers = ['10.13.111.40:9092']
+bootstrap_servers = ['172.27.16.1:9092']
+# bootstrap_servers = ['10.13.111.40:9092']
 # 9093
 
 # Define topic name where the message will be published
@@ -21,7 +21,7 @@ topicName = 'user_active_log'
 def generate_user_active_log():
     global totalUserActive
     # while True:
-    for i in range(1000000):
+    for i in range(20):
         # user_id = f"user-{random.randint(1, 50)}"
         user_id = f"user-{totalUserActive}"
         current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -37,7 +37,7 @@ def generate_user_active_log():
         totalUserActive += 1
         print(f"[{current_timestamp}] ({totalUserActive}) user_active_log")
 
-        delay = random.randint(5, 5) / 1000.0
+        delay = random.randint(1000, 1000) / 1000.0
         time.sleep(delay)
 
 generate_user_active_log()
