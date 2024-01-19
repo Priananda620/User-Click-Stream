@@ -35,18 +35,20 @@ def queue_click(data):
             data['timestamp'] = pd.to_datetime(data['timestamp'])
             buffered_user_click_rows.append(data)
         else:
-            current_timestamp = datetime.now()
-            minutes_ago = current_timestamp - timedelta(minutes=1)
+            # current_timestamp = datetime.now()
+            # minutes_ago = current_timestamp - timedelta(minutes=1)
 
-            existing_data_condition = any(
-                item['user_id'] == data['user_id'] and item['cctv_location'] == data['cctv_location'] and item['timestamp'] > minutes_ago
-                for item in buffered_user_click_rows
-            )
-            if not existing_data_condition:
-                data['timestamp'] = pd.to_datetime(data['timestamp'])
-                buffered_user_click_rows.append(data)
-            else:
-                print(f'-------IS EXIST------')
+            # existing_data_condition = any(
+            #     item['user_id'] == data['user_id'] and item['cctv_location'] == data['cctv_location'] and item['timestamp'] > minutes_ago
+            #     for item in buffered_user_click_rows
+            # )
+            # if not existing_data_condition:
+            #     data['timestamp'] = pd.to_datetime(data['timestamp'])
+            #     buffered_user_click_rows.append(data)
+            # else:
+            #     print(f'-------IS EXIST------')
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            buffered_user_click_rows.append(data)
 
         print(f"clicks total : {len(buffered_user_click_rows)}")
         
@@ -73,18 +75,21 @@ def queue_user_active_log(data):
             data['timestamp'] = pd.to_datetime(data['timestamp'])
             buffered_user_active_rows.append(data)
         else:
-            current_timestamp = datetime.now()
-            minutes_ago = current_timestamp - timedelta(minutes=1)
+            # current_timestamp = datetime.now()
+            # minutes_ago = current_timestamp - timedelta(minutes=1)
 
-            existing_data_condition = any(
-                item['user_id'] == data['user_id'] and item['timestamp'] > minutes_ago
-                for item in buffered_user_active_rows
-            )
-            if not existing_data_condition:
-                data['timestamp'] = pd.to_datetime(data['timestamp'])
-                buffered_user_active_rows.append(data)
-            else:
-                print(f'-------IS EXIST------')
+            # existing_data_condition = any(
+            #     item['user_id'] == data['user_id'] and item['timestamp'] > minutes_ago
+            #     for item in buffered_user_active_rows
+            # )
+            # if not existing_data_condition:
+            #     data['timestamp'] = pd.to_datetime(data['timestamp'])
+            #     buffered_user_active_rows.append(data)
+            # else:
+            #     print(f'-------IS EXIST------')
+            ############
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            buffered_user_active_rows.append(data)
 
         print(f"active total : {len(buffered_user_active_rows)}")
 
