@@ -23,14 +23,15 @@ buffered_user_click_lock = multiprocessingLock()
 
 
 prevObjects = []
-MAX_ROW_PER_CSV = 100000
+MAX_ROW_PER_CSV = 50000
+FLUSH_INTERVAL_SEC = 15
+MAX_BUFFER_LEN = 50000
+
+flushThreadStarted = False
 
 @app.task(name='user clicks')
 def queue_click(data):
     global buffered_user_click_rows
-    
-    # current_date = datetime.now().strftime('%Y-%m-%d')
-    # dir = f'data/user_clicks/{current_date}/'
 
 
     with buffered_user_click_lock:
@@ -56,19 +57,16 @@ def queue_click(data):
 
         print(f"clicks total : {len(buffered_user_click_rows)}")
         
-        # if len(buffered_user_click_rows) >= 100:
-        #     flush_click_log(buffered_user_click_rows)
+        if len(buffered_user_click_rows) > MAX_BUFFER_LEN:
+            flush_click_log(buffered_user_click_rows)
 
 
 @app.task(name='user active')
 def queue_user_active_log(data):
-    # current_date = datetime.now().strftime('%Y-%m-%d')
-    # dir = f'data/user_active_log/{current_date}/'
     global buffered_user_active_rows
 
     with buffered_user_active_lock:
         if not buffered_user_active_rows:
-            # If buffer is empty, add the data directly
             data['timestamp'] = pd.to_datetime(data['timestamp'])
             buffered_user_active_rows.append(data)
         else:
@@ -90,8 +88,8 @@ def queue_user_active_log(data):
 
         print(f"active total : {len(buffered_user_active_rows)}")
 
-        # if len(buffered_user_active_rows) >= 100:
-        #     flush_user_active(buffered_user_active_rows)
+        if len(buffered_user_active_rows) > MAX_BUFFER_LEN:
+            flush_user_active(buffered_user_active_rows)
             
 
 def flush_user_active(data):
@@ -129,15 +127,29 @@ def get_latest_file_number(directory):
     return max(numbers) if numbers else 0
 
 def concat_all_csv_files(directory):
-    csv_files = glob.glob(os.path.join(directory, '*.csv'))
+    csv_files = glob.glob(os.path.join(directory, '*.pkl'))
     all_data = pd.DataFrame()
 
     for csv_file in csv_files:
         try:
-            df = pd.read_csv(csv_file)
+            df = pd.read_pickle(csv_file)
             all_data = pd.concat([all_data, df], ignore_index=True)
         except pd.errors.EmptyDataError:
             pass
+    return all_data
+
+def concat_last_nth_csv_files(directory, nth):
+    csv_files = glob.glob(os.path.join(directory, '*.pkl'))
+    file_numbers = [int(os.path.splitext(os.path.basename(file))[0]) for file in csv_files]
+    last_nth_file_numbers = sorted(file_numbers, reverse=True)[:nth]
+    all_data = pd.DataFrame()
+    for num in reversed(last_nth_file_numbers):
+        try:
+            df = pd.read_pickle(os.path.join(directory, f"{num}.pkl"))
+            all_data = pd.concat([all_data, df], ignore_index=True)
+        except pd.errors.EmptyDataError:
+            all_data = pd.concat([all_data, pd.DataFrame(columns=df.columns)], ignore_index=False)
+
     return all_data
 
 # 6125
@@ -146,23 +158,20 @@ def logUserActive(data):
 
     current_date = datetime.now().strftime('%Y-%m-%d')
 
-    base_csv_file_path = f'data/user_active_log/{current_date}/'
+    base_file_path = f'data/user_active_log/{current_date}/'
 
-    latest_file_number = get_latest_file_number(base_csv_file_path)
+    latest_file_number = get_latest_file_number(base_file_path)
 
-    csv_file_path = f'{base_csv_file_path}{latest_file_number}.csv'
+    file_path = f'{base_file_path}{latest_file_number}.pkl'
 
 
-    if os.path.isfile(csv_file_path):
+    if os.path.isfile(file_path):
         print('---- EXIST FILE 0 ----')
         try:
-            existing_df = pd.read_csv(csv_file_path)
+            existing_df = pd.read_pickle(file_path)
             
             expected_headers = ['user_id', 'timestamp']
             if all(header in existing_df.columns for header in expected_headers):
-                # existing_df = pd.concat([existing_df, new_row], ignore_index=True)
-                # existing_df.to_csv(csv_file_path, index=False)
-
                 ######## added filtering
 
                 target_user_ids = list(set([item['user_id'] for item in data]))
@@ -174,21 +183,10 @@ def logUserActive(data):
                 
                 query = f"user_id in {target_user_ids} and timestamp > '{minutes_ago}'"
             
-                # result_df = existing_df.query(query)
-                result_df = concat_all_csv_files(base_csv_file_path).query(query)
+                result_df = existing_df.query(query)
+                # result_df = concat_last_nth_csv_files(base_file_path, 2).query(query)
 
                 if result_df.empty:
-                #     if len(existing_df) > 50:
-                #         latest_file_number += 1
-                #         csv_file_path = f'{base_csv_file_path}{latest_file_number}.csv'
-                #         print(f'---- NEW FILE {latest_file_number} DUE TO ROW LIMIT ----')
-                #         df = new_row
-                #         df.to_csv(csv_file_path, index=False)
-                #     else:
-                #         existing_df = pd.concat([existing_df, new_row], ignore_index=True)
-                        
-                #         existing_df.to_csv(csv_file_path, index=False)
-
                     remaining_capacity = MAX_ROW_PER_CSV - len(existing_df)
 
                     if len(new_row) > remaining_capacity:
@@ -197,31 +195,31 @@ def logUserActive(data):
                         
                         # Append the chunk to the current file
                         existing_df = pd.concat([existing_df, new_row_chunk], ignore_index=True)
-                        existing_df.to_csv(csv_file_path, index=False)
+                        existing_df.to_pickle(file_path)
 
                         # Create a new file for the remaining new row
                         latest_file_number += 1
-                        csv_file_path = f'{base_csv_file_path}{latest_file_number}.csv'
-                        remaining_new_row.to_csv(csv_file_path, index=False)
+                        file_path = f'{base_file_path}{latest_file_number}.pkl'
+                        remaining_new_row.to_pickle(file_path)
 
                         print(f'---- NEW FILE {latest_file_number} DUE TO ROW LIMIT ----')
                     else:
                         # Append the entire new row to the existing file
                         existing_df = pd.concat([existing_df, new_row], ignore_index=True)
-                        existing_df.to_csv(csv_file_path, index=False)
+                        existing_df.to_pickle(file_path)
                 else:
                     print(f'------- IS EXIST CSV ------')
             else:
-                os.remove(csv_file_path)
+                os.remove(file_path)
                 df = new_row
-                df.to_csv(csv_file_path, index=False)
+                df.to_pickle(file_path)
         except EmptyDataError:
             df = new_row
-            df.to_csv(csv_file_path, index=False)
+            df.to_pickle(file_path)
     else:
         print('---- NOT EXIST FILE 0 ----')
         df = new_row
-        df.to_csv(csv_file_path, index=False)
+        df.to_pickle(file_path)
 
 def logClick(data):
     new_row = pd.DataFrame(data, columns=['user_id', 'timestamp', 'cctv_location'])
@@ -229,17 +227,17 @@ def logClick(data):
     current_date = datetime.now().strftime('%Y-%m-%d')
 
     
-    base_csv_file_path = f'data/user_clicks/{current_date}/'
+    base_file_path = f'data/user_clicks/{current_date}/'
 
-    latest_file_number = get_latest_file_number(base_csv_file_path)
+    latest_file_number = get_latest_file_number(base_file_path)
 
-    csv_file_path = f'{base_csv_file_path}{latest_file_number}.csv'
+    file_path = f'{base_file_path}{latest_file_number}.pkl'
 
-    if os.path.isfile(csv_file_path):
+    if os.path.isfile(file_path):
         print('---- EXIST FILE 1 ----')
         try:
             # Try reading the existing CSV file
-            existing_df = pd.read_csv(csv_file_path)
+            existing_df = pd.read_pickle(file_path)
             
             # Check if the DataFrame has the expected column headers
             expected_headers = ['user_id', 'timestamp', 'cctv_location']
@@ -259,26 +257,10 @@ def logClick(data):
                 
                 query = f"user_id in {target_user_ids} and cctv_location in {target_cctv_locations} and timestamp > '{minutes_ago}'"
                 
-                # Query the DataFrame
-                # result_df = existing_df.query(query)
-                result_df = concat_all_csv_files(base_csv_file_path).query(query)
-                # Check if the result is not empty
+                result_df = existing_df.query(query)
+                # result_df = concat_last_nth_csv_files(base_file_path, 2).query(query)
+
                 if result_df.empty:
-                    # existing_df = pd.concat([existing_df, new_row], ignore_index=True)
-                    
-                    # existing_df.to_csv(csv_file_path, index=False)
-
-                    # if len(existing_df) > 50:
-                    #     latest_file_number += 1
-                    #     csv_file_path = f'{base_csv_file_path}{latest_file_number}.csv'
-                    #     print(f'---- NEW FILE {latest_file_number} DUE TO ROW LIMIT ----')
-                    #     df = new_row
-                    #     df.to_csv(csv_file_path, index=False)
-                    # else:
-                    #     existing_df = pd.concat([existing_df, new_row], ignore_index=True)
-                        
-                    #     existing_df.to_csv(csv_file_path, index=False)
-
                     remaining_capacity = MAX_ROW_PER_CSV - len(existing_df)
 
                     if len(new_row) > remaining_capacity:
@@ -287,35 +269,35 @@ def logClick(data):
                         
                         # Append the chunk to the current file
                         existing_df = pd.concat([existing_df, new_row_chunk], ignore_index=True)
-                        existing_df.to_csv(csv_file_path, index=False)
+                        existing_df.to_pickle(file_path)
 
                         # Create a new file for the remaining new row
                         latest_file_number += 1
-                        csv_file_path = f'{base_csv_file_path}{latest_file_number}.csv'
-                        remaining_new_row.to_csv(csv_file_path, index=False)
+                        file_path = f'{base_file_path}{latest_file_number}.pkl'
+                        remaining_new_row.to_pickle(file_path)
 
                         print(f'---- NEW FILE {latest_file_number} DUE TO ROW LIMIT ----')
                     else:
                         # Append the entire new row to the existing file
                         existing_df = pd.concat([existing_df, new_row], ignore_index=True)
-                        existing_df.to_csv(csv_file_path, index=False)
+                        existing_df.to_pickle(file_path)
                 else:
                     print(f'------- IS EXIST CSV ------')
                 
             else:
                 # If headers don't match, create a new DataFrame with the new row
-                os.remove(csv_file_path)
+                os.remove(file_path)
                 df = new_row
-                df.to_csv(csv_file_path, index=False)
+                df.to_pickle(file_path)
         except EmptyDataError:
             # Handle the case where the CSV file is completely empty
             df = new_row
-            df.to_csv(csv_file_path, index=False)
+            df.to_pickle(file_path)
     else:
         print('---- NOT EXIST FILE 1 ----')
         # If the CSV file does not exist, create a new file with the new row
         df = new_row
-        df.to_csv(csv_file_path, index=False)
+        df.to_pickle(file_path)
 
 
 def flush_buffer_thread(name, buffer, flush_function, flush_interval, lock):
@@ -328,24 +310,16 @@ def flush_buffer_thread(name, buffer, flush_function, flush_interval, lock):
 
 @app.task(name='buffer thread')
 def start_buffer_threads():
-    global buffered_user_click_rows, buffered_user_active_rows
+    global buffered_user_click_rows, buffered_user_active_rows, flushThreadStarted
     # Start a separate thread for flushing the user click buffer every 5 seconds
-    flush_thread_clicks = Thread(target=flush_buffer_thread, args=('CLICKS', buffered_user_click_rows, flush_click_log, 5, buffered_user_click_lock))
-    flush_thread_clicks.daemon = True
-    flush_thread_clicks.start()
+    if not flushThreadStarted:
+        flush_thread_clicks = Thread(target=flush_buffer_thread, args=('CLICKS', buffered_user_click_rows, flush_click_log, FLUSH_INTERVAL_SEC, buffered_user_click_lock))
+        flush_thread_clicks.daemon = True
+        flush_thread_clicks.start()
 
-    # Start a separate thread for flushing the user active buffer every 5 seconds
-    flush_thread_active = Thread(target=flush_buffer_thread, args=('USRLOG', buffered_user_active_rows, flush_user_active, 5, buffered_user_active_lock))
-    flush_thread_active.daemon = True
-    flush_thread_active.start()
+        # Start a separate thread for flushing the user active buffer every 5 seconds
+        flush_thread_active = Thread(target=flush_buffer_thread, args=('USRLOG', buffered_user_active_rows, flush_user_active, FLUSH_INTERVAL_SEC, buffered_user_active_lock))
+        flush_thread_active.daemon = True
+        flush_thread_active.start()
 
-# start_buffer_threads()
-
-# def monitor_buffer():
-#     while True:
-#         time.sleep(1)
-#         print(len(buffered_user_active_rows))
-
-# buffer_thread = Thread(target=monitor_buffer)
-# buffer_thread.daemon = True
-# buffer_thread.start()
+        flushThreadStarted = True

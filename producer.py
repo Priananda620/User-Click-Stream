@@ -21,7 +21,7 @@ topicName = 'user_active_log'
 def generate_user_active_log():
     global totalUserActive
     # while True:
-    for i in range(20):
+    for i in range(200000):
         # user_id = f"user-{random.randint(1, 50)}"
         user_id = f"user-{totalUserActive}"
         current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -37,7 +37,7 @@ def generate_user_active_log():
         totalUserActive += 1
         print(f"[{current_timestamp}] ({totalUserActive}) user_active_log")
 
-        delay = random.randint(1000, 1000) / 1000.0
+        delay = random.randint(1, 1) / 1000.0
         time.sleep(delay)
 
 generate_user_active_log()

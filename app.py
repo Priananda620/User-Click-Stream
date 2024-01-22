@@ -53,7 +53,8 @@ def kafka_consumer_user_active_task():
 def status():
     return jsonify({'message': 'CSV writing process is running.'})
 
-start_buffer_threads.delay()
+for i in range(100):
+    start_buffer_threads.delay()
 
 kafka_thread_clicks = threading.Thread(target=kafka_consumer_click_task)
 kafka_user_active = threading.Thread(target=kafka_consumer_user_active_task)
