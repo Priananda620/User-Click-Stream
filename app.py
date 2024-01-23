@@ -20,11 +20,13 @@ except FileNotFoundError:
 kafka_consumer_clicks = KafkaConsumer(
     'clicks', 
     bootstrap_servers='172.27.16.1:9092',
+    # bootstrap_servers='10.13.111.40:9092',
     value_deserializer=lambda x: x.decode('utf-8')
 )
 kafka_consumer_user_active_log = KafkaConsumer(
     'user_active_log', 
     bootstrap_servers='172.27.16.1:9092',
+    # bootstrap_servers='10.13.111.40:9092',
     value_deserializer=lambda x: x.decode('utf-8')
 )
 
@@ -64,4 +66,4 @@ kafka_thread_clicks.join()
 kafka_user_active.join()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
