@@ -3,10 +3,18 @@ import random
 from datetime import datetime
 from kafka import KafkaProducer
 import time
+
+import os
+import sys
+
+current = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+sys.path.append(current)
+# print(sys.path)
+
 import config
 
 bootstrap_servers = config.BOOTSTRAP_SERVER
-# 9093
 
 producer = KafkaProducer(bootstrap_servers=bootstrap_servers, value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 local_data = []
@@ -35,7 +43,7 @@ def generate_user_active_log():
         delay = random.randint(1000, 1000) / 1000.0
         time.sleep(delay)
 
-generate_user_active_log()
+# generate_user_active_log()
 
 # while True:
 #     # Define user_id

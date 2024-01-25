@@ -8,6 +8,12 @@ from threading import Thread, Lock, Event
 from multiprocessing import Lock as multiprocessingLock
 from multiprocessing import Manager
 from datetime import datetime, timedelta
+import sys
+
+current = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+sys.path.append(current)
+
 import config
 
 BROKER_URL = config.REDIS_BROKER_URL

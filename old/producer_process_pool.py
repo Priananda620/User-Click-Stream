@@ -5,6 +5,14 @@ from kafka import KafkaProducer
 import time
 import concurrent.futures
 import multiprocessing
+
+import os
+import sys
+
+current = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+sys.path.append(current)
+
 import config
 
 def generate_user_active_log(start, end):

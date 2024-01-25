@@ -4,6 +4,13 @@ from datetime import datetime
 from kafka import KafkaProducer
 import time
 import threading
+import os
+import sys
+
+current = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+sys.path.append(current)
+
 import config
 
 bootstrap_servers = config.BOOTSTRAP_SERVER
