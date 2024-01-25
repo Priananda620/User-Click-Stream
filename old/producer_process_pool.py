@@ -5,10 +5,11 @@ from kafka import KafkaProducer
 import time
 import concurrent.futures
 import multiprocessing
+import config
 
 def generate_user_active_log(start, end):
     # Define server with port
-    bootstrap_servers = ['10.13.111.40:9092']
+    bootstrap_servers = config.BOOTSTRAP_SERVER
     topicName = 'user_active_log'
 
     # Initialize producer variable

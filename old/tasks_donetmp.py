@@ -7,9 +7,10 @@ import time
 from threading import Thread, Lock, Event
 from multiprocessing import Lock as multiprocessingLock
 from datetime import datetime, timedelta
+import config
 
-BROKER_URL = 'redis://localhost:6379/0'
-BACKEND_URL = 'redis://localhost:6379/1'
+BROKER_URL = config.REDIS_BROKER_URL
+BACKEND_URL = config.REDIS_BACKEND_URL
 
 app = Celery('tasks', broker=BROKER_URL, backend=BACKEND_URL)
 

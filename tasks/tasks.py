@@ -8,9 +8,13 @@ from threading import Thread, Lock, Event
 from multiprocessing import Lock as multiprocessingLock
 from datetime import datetime, timedelta
 import glob
+import config
 
-BROKER_URL = 'redis://localhost:6379/0'
-BACKEND_URL = 'redis://localhost:6379/1'
+BROKER_URL = config.REDIS_BROKER_URL
+BACKEND_URL = config.REDIS_BACKEND_URL
+MAX_ROW_PER_CSV = int(config.MAX_ROW_PER_CSV)
+FLUSH_INTERVAL_SEC = int(config.FLUSH_INTERVAL_SEC)
+MAX_BUFFER_LEN = int(config.MAX_BUFFER_LEN)
 
 app = Celery('tasks', broker=BROKER_URL, backend=BACKEND_URL)
 
@@ -23,9 +27,7 @@ buffered_user_click_lock = multiprocessingLock()
 
 
 prevObjects = []
-MAX_ROW_PER_CSV = 50000
-FLUSH_INTERVAL_SEC = 15
-MAX_BUFFER_LEN = 50000
+
 
 flushThreadStarted = False
 

@@ -4,9 +4,10 @@ from datetime import datetime
 from kafka import KafkaProducer
 import time
 import threading
+import config
 
-bootstrap_servers = ['172.27.16.1:9092']
-# bootstrap_servers = ['10.13.111.40:9092']
+bootstrap_servers = config.BOOTSTRAP_SERVER
+
 producer = KafkaProducer(bootstrap_servers=bootstrap_servers, value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 
 local_data = []

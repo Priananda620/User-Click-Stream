@@ -3,16 +3,11 @@ import random
 from datetime import datetime
 from kafka import KafkaProducer
 import time
+import config
 
-# Define server with port
-# bootstrap_servers = ['172.27.16.1:9092']
-bootstrap_servers = ['10.13.111.40:9092']
+bootstrap_servers = config.BOOTSTRAP_SERVER
 # 9093
 
-# Define topic name where the message will be published
-# topicName = 'clicks'
-# testTopic
-# Initialize producer variable
 producer = KafkaProducer(bootstrap_servers=bootstrap_servers, value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 local_data = []
 totalUserActive = 0
@@ -37,7 +32,7 @@ def generate_user_active_log():
         totalUserActive += 1
         print(f"[{current_timestamp}] ({totalUserActive}) user_active_log")
 
-        delay = random.randint(1, 1) / 1000.0
+        delay = random.randint(1000, 1000) / 1000.0
         time.sleep(delay)
 
 generate_user_active_log()
