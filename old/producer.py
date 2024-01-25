@@ -43,7 +43,7 @@ def generate_user_active_log():
         delay = random.randint(1000, 1000) / 1000.0
         time.sleep(delay)
 
-# generate_user_active_log()
+generate_user_active_log()
 
 # while True:
 #     # Define user_id
