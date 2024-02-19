@@ -7,6 +7,9 @@ ROOT_ABS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 load_dotenv(find_dotenv())
 
+ONESIGNAL_APP_ID = os.environ.get('ONESIGNAL_APP_ID')
+ONESIGNAL_REST_API_KEY = os.environ.get('ONESIGNAL_REST_API_KEY')
+ONESIGNAL_USER_AUTH_KEY = os.environ.get('ONESIGNAL_USER_AUTH_KEY')
 BOOTSTRAP_SERVER = os.environ.get('BOOTSTRAP_SERVER')
 REDIS_BROKER_URL = os.environ.get('REDIS_BROKER_URL')
 REDIS_BACKEND_URL = os.environ.get('REDIS_BACKEND_URL')

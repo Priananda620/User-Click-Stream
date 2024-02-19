@@ -4,7 +4,7 @@ from kafka import KafkaConsumer
 import json
 from redis import Redis
 import pandas as pd
-from tasks.tasks import queue_click, queue_user_active_log, start_buffer_threads
+from tasks.tasks import queue_click, queue_user_active_log, start_buffer_threads, queue_live_update_log
 from celery import Celery
 import threading
 from concurrent.futures import ProcessPoolExecutor
@@ -16,11 +16,22 @@ kafka_consumer_clicks = KafkaConsumer(
     bootstrap_servers=config.BOOTSTRAP_SERVER,
     value_deserializer=lambda x: x.decode('utf-8')
 )
+kafka_consumer_live_update = KafkaConsumer(
+    'live_update', 
+    bootstrap_servers=config.BOOTSTRAP_SERVER,
+    value_deserializer=lambda x: x.decode('utf-8')
+)
 kafka_consumer_user_active_log = KafkaConsumer(
     'user_active_log', 
     bootstrap_servers=config.BOOTSTRAP_SERVER,
     value_deserializer=lambda x: x.decode('utf-8')
 )
+
+def kafka_consumer_live_update_task():
+    for message in kafka_consumer_live_update:
+        json_data = json.loads(message.value)
+        print(f"Received message (topic: live_update): {json_data}")
+        queue_live_update_log.delay(json_data)
 
 def kafka_consumer_click_task():
     for message in kafka_consumer_clicks:
@@ -43,10 +54,13 @@ def create_app() -> Flask:
         for i in range(100):
             start_buffer_threads.delay()
 
+        kafka_thread_live_update = threading.Thread(target=kafka_consumer_live_update_task)
         kafka_thread_clicks = threading.Thread(target=kafka_consumer_click_task)
         kafka_user_active = threading.Thread(target=kafka_consumer_user_active_task)
+        kafka_thread_live_update.start()
         kafka_thread_clicks.start()
         kafka_user_active.start()
+        kafka_thread_live_update.join()
         kafka_thread_clicks.join()
         kafka_user_active.join()
 

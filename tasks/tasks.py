@@ -3,6 +3,8 @@ import pandas as pd
 from pandas.errors import EmptyDataError
 import os
 import time
+
+import requests
 # from filelock import FileLock
 from threading import Thread, Lock, Event
 from multiprocessing import Lock as multiprocessingLock
@@ -24,6 +26,9 @@ buffered_user_active_lock = multiprocessingLock()
 
 buffered_user_click_rows = []
 buffered_user_click_lock = multiprocessingLock()
+
+buffered_live_update_rows = []
+buffered_live_update_lock = multiprocessingLock()
 
 
 prevObjects = []
@@ -92,7 +97,30 @@ def queue_user_active_log(data):
 
         if len(buffered_user_active_rows) > MAX_BUFFER_LEN:
             flush_user_active(buffered_user_active_rows)
-            
+
+@app.task(name='live update')
+def queue_live_update_log(data):
+    global buffered_live_update_rows
+
+    with buffered_live_update_lock:
+        if not buffered_live_update_rows:
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            buffered_live_update_rows.append(data)
+        else:
+            existing_data_condition = any(
+                item['id'] == data['id']
+                for item in buffered_live_update_rows
+            )
+            if not existing_data_condition:
+                data['timestamp'] = pd.to_datetime(data['timestamp'])
+                buffered_live_update_rows.append(data)
+            else:
+                print(f'Data with id {data["id"]} already exists in the buffer')
+
+    print(buffered_live_update_rows)
+
+# ===========================================
+    # =======================================================================================================
 
 def flush_user_active(data):
     current_date = datetime.now().strftime('%Y-%m-%d')
@@ -122,6 +150,49 @@ def flush_click_log(data):
         logClick(data)   
 
     data.clear()
+
+def flush_live_update(data):
+    if data:
+        first_in_data = data[0]
+
+        title_heading = first_in_data.get('title')
+        content_description = first_in_data.get('description')
+        type = first_in_data.get('type')
+        user_target = first_in_data.get('user_target')
+        timestamp = first_in_data.get('timestamp')
+        target_cctvs = first_in_data.get('target_cctvs')
+
+        print(first_in_data)
+
+        if(user_target == 'ALL_USER' and type == 'CCTV'):
+            heading = f"{title_heading}"
+            message = f"{content_description}"
+
+            payload = {
+                "app_id": config.ONESIGNAL_APP_ID,
+                "included_segments": ["All"],
+                # "include_player_ids": [1],
+                "contents": {"en": message},
+                "headings": {"en": heading}
+            }
+
+            headers = {
+                "Authorization": "Basic " + config.ONESIGNAL_REST_API_KEY,
+                "accept": "application/json",
+                "content-type": "application/json"
+            }
+
+            print(f"SENT")
+
+            response = requests.post("https://onesignal.com/api/v1/notifications", json=payload, headers=headers)
+
+            if response.status_code == 200:
+                print({"message": "Notification sent successfully"})
+                data.pop(0)
+            else:
+                print({"error": "Failed to send notification"}, response.status_code)
+    else:
+        return None
 
 def get_latest_file_number(directory):
     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
@@ -312,7 +383,7 @@ def flush_buffer_thread(name, buffer, flush_function, flush_interval, lock):
 
 @app.task(name='buffer thread')
 def start_buffer_threads():
-    global buffered_user_click_rows, buffered_user_active_rows, flushThreadStarted
+    global buffered_user_click_rows, buffered_user_active_rows, buffered_live_update_rows,flushThreadStarted
     # Start a separate thread for flushing the user click buffer every 5 seconds
     if not flushThreadStarted:
         flush_thread_clicks = Thread(target=flush_buffer_thread, args=('CLICKS', buffered_user_click_rows, flush_click_log, FLUSH_INTERVAL_SEC, buffered_user_click_lock))
@@ -323,5 +394,9 @@ def start_buffer_threads():
         flush_thread_active = Thread(target=flush_buffer_thread, args=('USRLOG', buffered_user_active_rows, flush_user_active, FLUSH_INTERVAL_SEC, buffered_user_active_lock))
         flush_thread_active.daemon = True
         flush_thread_active.start()
+
+        flush_thread_live_update = Thread(target=flush_buffer_thread, args=('LIVE_UPDATE', buffered_live_update_rows, flush_live_update, FLUSH_INTERVAL_SEC, buffered_live_update_lock))
+        flush_thread_live_update.daemon = True
+        flush_thread_live_update.start()
 
         flushThreadStarted = True
