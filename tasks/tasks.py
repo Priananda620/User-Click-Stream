@@ -227,7 +227,7 @@ def concat_last_nth_csv_files(directory, nth):
 
 # 6125
 def logUserActive(data):
-    new_row = pd.DataFrame(data, columns=['user_id', 'timestamp'])
+    new_row = pd.DataFrame(data, columns=['user_id', 'player_id', 'timestamp'])
 
     current_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -243,7 +243,7 @@ def logUserActive(data):
         try:
             existing_df = pd.read_pickle(file_path)
             
-            expected_headers = ['user_id', 'timestamp']
+            expected_headers = ['user_id', 'player_id', 'timestamp']
             if all(header in existing_df.columns for header in expected_headers):
                 ######## added filtering
 

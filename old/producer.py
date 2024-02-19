@@ -31,6 +31,7 @@ def generate_user_active_log():
 
         json_data = {
             "user_id": f"{user_id}_activeLogs",
+            "player_id": f"{user_id}_player_id",
             "timestamp": current_timestamp
         }
 
@@ -40,7 +41,7 @@ def generate_user_active_log():
         totalUserActive += 1
         print(f"[{current_timestamp}] ({totalUserActive}) user_active_log")
 
-        delay = random.randint(1, 1) / 1000.0
+        delay = random.randint(1000, 1000) / 1000.0
         time.sleep(delay)
 
 generate_user_active_log()
