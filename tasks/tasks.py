@@ -215,7 +215,7 @@ def flush_live_update(data):
             unique_player_ids = list(set(player_ids))
             payload = {
                 "app_id": config.ONESIGNAL_APP_ID,
-                "included_segments": ["All"],
+                # "included_segments": ["All"],
                 "include_player_ids": unique_player_ids,
                 "contents": {"en": message},
                 "headings": {"en": heading}
