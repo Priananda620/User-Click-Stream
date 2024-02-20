@@ -212,10 +212,11 @@ def flush_live_update(data):
                 print({"error": "Failed to send notification"}, response.status_code)
         elif(user_target == 'SPECIFIC_USER' and type == 'CCTV'):
             player_ids = get_player_ids_from_log()
+            unique_player_ids = list(set(player_ids))
             payload = {
                 "app_id": config.ONESIGNAL_APP_ID,
                 "included_segments": ["All"],
-                "include_player_ids": player_ids,
+                "include_player_ids": unique_player_ids,
                 "contents": {"en": message},
                 "headings": {"en": heading}
             }
