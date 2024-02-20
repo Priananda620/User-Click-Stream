@@ -151,6 +151,26 @@ def flush_click_log(data):
 
     data.clear()
 
+def get_player_ids_from_log():
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    base_file_path = f'output/user_active_log/{current_date}'
+    file_path = f'{base_file_path}.csv'
+    six_hours_ago = datetime.now() - timedelta(hours=6)
+
+    try:
+        if os.path.isfile(file_path):
+            existing_df = pd.read_csv(file_path)
+            existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
+            filtered_df = existing_df[existing_df['timestamp'] >= six_hours_ago]
+            player_ids = filtered_df['player_id'].tolist()
+
+            return player_ids if player_ids else []
+        else:
+            return []
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return None
+
 def flush_live_update(data):
     if data:
         first_in_data = data[0]
@@ -164,10 +184,15 @@ def flush_live_update(data):
 
         print(first_in_data)
 
-        if(user_target == 'ALL_USER' and type == 'CCTV'):
-            heading = f"{title_heading}"
-            message = f"{content_description}"
+        headers = {
+            "Authorization": "Basic " + config.ONESIGNAL_REST_API_KEY,
+            "accept": "application/json",
+            "content-type": "application/json"
+        }
+        heading = f"{title_heading}"
+        message = f"{content_description}"
 
+        if(user_target == 'ALL_USER' and type == 'CCTV'):
             payload = {
                 "app_id": config.ONESIGNAL_APP_ID,
                 "included_segments": ["All"],
@@ -176,13 +201,26 @@ def flush_live_update(data):
                 "headings": {"en": heading}
             }
 
-            headers = {
-                "Authorization": "Basic " + config.ONESIGNAL_REST_API_KEY,
-                "accept": "application/json",
-                "content-type": "application/json"
+            print(f"SENT 1")
+
+            response = requests.post("https://onesignal.com/api/v1/notifications", json=payload, headers=headers)
+
+            if response.status_code == 200:
+                print({"message": "Notification sent successfully"})
+                data.pop(0)
+            else:
+                print({"error": "Failed to send notification"}, response.status_code)
+        elif(user_target == 'SPECIFIC_USER' and type == 'CCTV'):
+            player_ids = get_player_ids_from_log()
+            payload = {
+                "app_id": config.ONESIGNAL_APP_ID,
+                "included_segments": ["All"],
+                "include_player_ids": player_ids,
+                "contents": {"en": message},
+                "headings": {"en": heading}
             }
 
-            print(f"SENT")
+            print(f"SENT 2")
 
             response = requests.post("https://onesignal.com/api/v1/notifications", json=payload, headers=headers)
 
