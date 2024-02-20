@@ -189,14 +189,18 @@ def flush_live_update(data):
             "accept": "application/json",
             "content-type": "application/json"
         }
-        heading = f"{title_heading}"
-        message = f"{content_description}"
+        heading = str(title_heading)
+        message = str(content_description)
 
         if(user_target == 'ALL_USER' and type == 'CCTV'):
             payload = {
                 "app_id": config.ONESIGNAL_APP_ID,
                 "included_segments": ["All"],
-                # "include_player_ids": [1],
+                "data": {
+                    "heading": heading,
+                    "message": message,
+                    "type": "string"
+                },
                 "contents": {"en": message},
                 "headings": {"en": heading}
             }
@@ -215,7 +219,11 @@ def flush_live_update(data):
             unique_player_ids = list(set(player_ids))
             payload = {
                 "app_id": config.ONESIGNAL_APP_ID,
-                # "included_segments": ["All"],
+                "data": {
+                    "heading": heading,
+                    "message": message,
+                    "type": "string"
+                },
                 "include_player_ids": unique_player_ids,
                 "contents": {"en": message},
                 "headings": {"en": heading}
