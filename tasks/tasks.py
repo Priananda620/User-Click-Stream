@@ -216,28 +216,33 @@ def flush_live_update(data):
                 print({"error": "Failed to send notification"}, response.status_code)
         elif(user_target == 'SPECIFIC_USER' and type == 'CCTV'):
             player_ids = get_player_ids_from_log()
-            unique_player_ids = list(set(player_ids))
-            payload = {
-                "app_id": config.ONESIGNAL_APP_ID,
-                "data": {
-                    "heading": heading,
-                    "message": message,
-                    "type": "string"
-                },
-                "include_player_ids": unique_player_ids,
-                "contents": {"en": message},
-                "headings": {"en": heading}
-            }
 
-            print(f"SENT 2")
+            if player_ids:
+                unique_player_ids = list(set(player_ids))
+                payload = {
+                    "app_id": config.ONESIGNAL_APP_ID,
+                    "data": {
+                        "heading": heading,
+                        "message": message,
+                        "type": "string"
+                    },
+                    "include_player_ids": unique_player_ids,
+                    "contents": {"en": message},
+                    "headings": {"en": heading}
+                }
 
-            response = requests.post("https://onesignal.com/api/v1/notifications", json=payload, headers=headers)
+                print(f"SENT 2")
+                
+                response = requests.post("https://onesignal.com/api/v1/notifications", json=payload, headers=headers)
 
-            if response.status_code == 200:
-                print({"message": "Notification sent successfully"})
-                data.pop(0)
+                if response.status_code == 200:
+                    print({"message": "Notification sent successfully"})
+                    data.pop(0)
+                else:
+                    print({"error": "Failed to send notification"}, response.status_code)
             else:
-                print({"error": "Failed to send notification"}, response.status_code)
+                print("No player IDs found. Skipping notification sending.")
+
     else:
         return None
 
