@@ -17,6 +17,7 @@ BACKEND_URL = config.REDIS_BACKEND_URL
 MAX_ROW_PER_CSV = int(config.MAX_ROW_PER_CSV)
 FLUSH_INTERVAL_SEC = int(config.FLUSH_INTERVAL_SEC)
 MAX_BUFFER_LEN = int(config.MAX_BUFFER_LEN)
+USER_LOG_INTERVAL_MINUTES = int(config.USER_LOG_INTERVAL_MINUTES)
 
 app = Celery('tasks', broker=BROKER_URL, backend=BACKEND_URL)
 
@@ -47,7 +48,7 @@ def queue_click(data):
             buffered_user_click_rows.append(data)
         else:
             current_timestamp = datetime.now()
-            minutes_ago = current_timestamp - timedelta(minutes=1)
+            minutes_ago = current_timestamp - timedelta(minutes=USER_LOG_INTERVAL_MINUTES)
 
             existing_data_condition = any(
                 item['user_id'] == data['user_id'] and item['cctv_location'] == data['cctv_location'] and item['timestamp'] > minutes_ago
@@ -78,7 +79,7 @@ def queue_user_active_log(data):
             buffered_user_active_rows.append(data)
         else:
             current_timestamp = datetime.now()
-            minutes_ago = current_timestamp - timedelta(minutes=1)
+            minutes_ago = current_timestamp - timedelta(minutes=USER_LOG_INTERVAL_MINUTES)
 
             existing_data_condition = any(
                 item['user_id'] == data['user_id'] and item['timestamp'] > minutes_ago
@@ -304,7 +305,7 @@ def logUserActive(data):
 
                 existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
 
-                minutes_ago = current_timestamp - timedelta(minutes=1)
+                minutes_ago = current_timestamp - timedelta(minutes=USER_LOG_INTERVAL_MINUTES)
                 
                 query = f"user_id in {target_user_ids} and timestamp > '{minutes_ago}'"
             
@@ -378,7 +379,7 @@ def logClick(data):
                 existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
 
                 # Calculate the timestamp 5 minutes ago
-                minutes_ago = current_timestamp - timedelta(minutes=1)
+                minutes_ago = current_timestamp - timedelta(minutes=USER_LOG_INTERVAL_MINUTES)
                 
                 query = f"user_id in {target_user_ids} and cctv_location in {target_cctv_locations} and timestamp > '{minutes_ago}'"
                 
