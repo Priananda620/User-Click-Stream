@@ -18,6 +18,7 @@ MAX_ROW_PER_CSV = int(config.MAX_ROW_PER_CSV)
 FLUSH_INTERVAL_SEC = int(config.FLUSH_INTERVAL_SEC)
 MAX_BUFFER_LEN = int(config.MAX_BUFFER_LEN)
 USER_LOG_INTERVAL_MINUTES = int(config.USER_LOG_INTERVAL_MINUTES)
+LIVE_UPDATE_GET_LOG_FROM_LAST_HOUR = int(config.LIVE_UPDATE_GET_LOG_FROM_LAST_HOUR)
 
 app = Celery('tasks', broker=BROKER_URL, backend=BACKEND_URL)
 
@@ -156,14 +157,14 @@ def get_player_ids_from_log():
     current_date = datetime.now().strftime('%Y-%m-%d')
     base_file_path = f'output/user_active_log/{current_date}'
     file_path = f'{base_file_path}.csv'
-    six_hours_ago = datetime.now() - timedelta(hours=6)
+    hours_ago = datetime.now() - timedelta(hours=LIVE_UPDATE_GET_LOG_FROM_LAST_HOUR)
 
     try:
         if os.path.isfile(file_path):
             existing_df = pd.read_csv(file_path)
             existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
             existing_df = existing_df.dropna(subset=['player_id'])
-            filtered_df = existing_df[existing_df['timestamp'] >= six_hours_ago]
+            filtered_df = existing_df[existing_df['timestamp'] >= hours_ago]
             player_ids = filtered_df['player_id'].tolist()
 
             print(player_ids)
