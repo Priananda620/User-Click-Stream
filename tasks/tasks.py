@@ -162,8 +162,11 @@ def get_player_ids_from_log():
         if os.path.isfile(file_path):
             existing_df = pd.read_csv(file_path)
             existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
+            existing_df = existing_df.dropna(subset=['player_id'])
             filtered_df = existing_df[existing_df['timestamp'] >= six_hours_ago]
             player_ids = filtered_df['player_id'].tolist()
+
+            print(player_ids)
 
             return player_ids if player_ids else []
         else:
