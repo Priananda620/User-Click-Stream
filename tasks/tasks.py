@@ -153,8 +153,7 @@ def flush_click_log(data):
 
     data.clear()
 
-def get_player_ids_from_log():
-    current_date = datetime.now().strftime('%Y-%m-%d')
+def get_player_ids_from_log(current_date):
     base_file_path = f'output/user_active_log/{current_date}'
     file_path = f'{base_file_path}.csv'
     hours_ago = datetime.now() - timedelta(hours=LIVE_UPDATE_GET_LOG_FROM_LAST_HOUR)
@@ -175,11 +174,48 @@ def get_player_ids_from_log():
     except Exception as e:
         print(f"Error occurred: {e}")
         return None
+    
+def filter_player_ids_is_in_cctv_ids(unique_player_ids, cctv_ids_to_check, current_date):
+    player_ids_cctv_found = []
+    base_file_path = f'output/user_active_log/{current_date}'
+    file_path = f'{base_file_path}.csv'
+    try:
+        if os.path.isfile(file_path):
+            df = pd.read_csv(file_path)
+            for player_id in unique_player_ids:
+                player_id_to_filter = player_id
+                filtered_df = df[df['player_id'] == player_id_to_filter]
+
+                last_row_index = filtered_df.iloc[[-1]]
+                cctv_routes_list = eval(last_row_index['cctv_routes'].iloc[0])
+                cctv_favorite_list = eval(last_row_index['cctv_favorite'].iloc[0])
+
+                cctv_routes_list = [int(route_id) for route_id in cctv_routes_list]
+                cctv_favorite_list = [int(favorite_id) for favorite_id in cctv_favorite_list]
+
+                combined_list = list(set(cctv_routes_list + cctv_favorite_list))
+
+                found = False
+                for cctv_id in cctv_ids_to_check:
+                    if cctv_id in combined_list:
+                        player_ids_cctv_found.append(player_id)
+                        found = True
+                        break
+
+                print(f'{player_id} {combined_list} {cctv_ids_to_check} : {found}')
+
+            return player_ids_cctv_found
+        else:
+            return []
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return None
 
 def flush_live_update(data):
     if data:
         first_in_data = data[0]
 
+        liveupdate_id = first_in_data.get('id')
         title_heading = first_in_data.get('title')
         content_description = first_in_data.get('description')
         type = first_in_data.get('type')
@@ -202,6 +238,7 @@ def flush_live_update(data):
                 "app_id": config.ONESIGNAL_APP_ID,
                 "included_segments": ["All"],
                 "data": {
+                    "id": liveupdate_id,
                     "heading": heading,
                     "message": message,
                     "type": "string"
@@ -220,18 +257,23 @@ def flush_live_update(data):
             else:
                 print({"error": "Failed to send notification"}, response.status_code)
         elif(user_target == 'SPECIFIC_USER' and type == 'CCTV'):
-            player_ids = get_player_ids_from_log()
-
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            player_ids = get_player_ids_from_log(current_date)
+            
             if player_ids:
                 unique_player_ids = list(set(player_ids))
+                cctv_ids_to_check = target_cctvs
+                player_ids_cctv_found = list(set(filter_player_ids_is_in_cctv_ids(unique_player_ids, cctv_ids_to_check, current_date)))
+
                 payload = {
                     "app_id": config.ONESIGNAL_APP_ID,
                     "data": {
+                        "id": liveupdate_id,
                         "heading": heading,
                         "message": message,
                         "type": "string"
                     },
-                    "include_player_ids": unique_player_ids,
+                    "include_player_ids": player_ids_cctv_found,
                     "contents": {"en": message},
                     "headings": {"en": heading}
                 }
@@ -284,7 +326,7 @@ def concat_last_nth_csv_files(directory, nth):
 
 # 6125
 def logUserActive(data):
-    new_row = pd.DataFrame(data, columns=['user_id', 'player_id', 'timestamp'])
+    new_row = pd.DataFrame(data, columns=['user_id', 'player_id', 'cctv_routes', 'cctv_favorite','timestamp'])
 
     current_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -300,7 +342,7 @@ def logUserActive(data):
         try:
             existing_df = pd.read_pickle(file_path)
             
-            expected_headers = ['user_id', 'player_id', 'timestamp']
+            expected_headers = ['user_id', 'player_id', 'cctv_routes', 'cctv_favorite','timestamp']
             if all(header in existing_df.columns for header in expected_headers):
                 ######## added filtering
 

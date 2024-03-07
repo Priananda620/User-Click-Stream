@@ -29,9 +29,14 @@ def generate_user_active_log():
         user_id = f"user-{totalUserActive}"
         current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
+        cctv_routes = [random.randint(1, 1000) for _ in range(3)]
+        cctv_favorite = [random.randint(1, 2000) for _ in range(12)]
+
         json_data = {
             "user_id": f"{user_id}_activeLogs",
             "player_id": f"{user_id}_player_id",
+            "cctv_routes": cctv_routes,
+            "cctv_favorite": cctv_favorite,
             "timestamp": current_timestamp
         }
 
