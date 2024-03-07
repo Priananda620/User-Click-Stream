@@ -241,7 +241,7 @@ def flush_live_update(data):
                     "id": liveupdate_id,
                     "heading": heading,
                     "message": message,
-                    "type": "string"
+                    "type": "liveupdate"
                 },
                 "contents": {"en": message},
                 "headings": {"en": heading}
@@ -271,7 +271,7 @@ def flush_live_update(data):
                         "id": liveupdate_id,
                         "heading": heading,
                         "message": message,
-                        "type": "string"
+                        "type": "liveupdate"
                     },
                     "include_player_ids": player_ids_cctv_found,
                     "contents": {"en": message},
