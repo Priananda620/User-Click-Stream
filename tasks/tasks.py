@@ -3,6 +3,10 @@ import pandas as pd
 from pandas.errors import EmptyDataError
 import os
 import time
+import logging
+from utils.enums import LiveUpdateTarget
+from utils.enums import LiveUpdateType
+from utils import pandas_logics
 
 import requests
 # from filelock import FileLock
@@ -19,6 +23,7 @@ FLUSH_INTERVAL_SEC = int(config.FLUSH_INTERVAL_SEC)
 MAX_BUFFER_LEN = int(config.MAX_BUFFER_LEN)
 USER_LOG_INTERVAL_MINUTES = int(config.USER_LOG_INTERVAL_MINUTES)
 LIVE_UPDATE_GET_LOG_FROM_LAST_HOUR = int(config.LIVE_UPDATE_GET_LOG_FROM_LAST_HOUR)
+LIVE_UPDATE_GET_INACTIVE_USER_FROM_HOUR = int(config.LIVE_UPDATE_GET_INACTIVE_USER_FROM_HOUR)
 
 app = Celery('tasks', broker=BROKER_URL, backend=BACKEND_URL)
 
@@ -37,6 +42,9 @@ prevObjects = []
 
 
 flushThreadStarted = False
+
+logging.basicConfig(filename='logs/celery.log', level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.info(f"Celery Workers Started...")
 
 @app.task(name='user clicks')
 def queue_click(data):
@@ -90,7 +98,7 @@ def queue_user_active_log(data):
                 data['timestamp'] = pd.to_datetime(data['timestamp'])
                 buffered_user_active_rows.append(data)
             else:
-                print(f'-------IS EXIST------')
+                print(f'------- EXIST IN BUFFER ------')
             ############
             # data['timestamp'] = pd.to_datetime(data['timestamp'])
             # buffered_user_active_rows.append(data)
@@ -166,8 +174,6 @@ def get_player_ids_from_log(current_date):
             filtered_df = existing_df[existing_df['timestamp'] >= hours_ago]
             player_ids = filtered_df['player_id'].tolist()
 
-            print(player_ids)
-
             return player_ids if player_ids else []
         else:
             return []
@@ -233,7 +239,7 @@ def flush_live_update(data):
         heading = str(title_heading)
         message = str(content_description)
 
-        if(user_target == 'ALL_USER' and type == 'CCTV'):
+        if(user_target in LiveUpdateTarget.__members__ and user_target == LiveUpdateTarget.ALL_USER.name and type == LiveUpdateType.CCTV.name):
             payload = {
                 "app_id": config.ONESIGNAL_APP_ID,
                 "included_segments": ["All"],
@@ -247,16 +253,20 @@ def flush_live_update(data):
                 "headings": {"en": heading}
             }
 
-            print(f"SENT 1")
+            # print(f"SENT 1")
+            logging.info(f"Live update [{LiveUpdateTarget.ALL_USER.name}] notification recieved: {first_in_data}")
+            response = requests.post(config.ONESIGNAL_NOTIF_BLAST_ENDPOINT, json=payload, headers=headers)
 
-            response = requests.post("https://onesignal.com/api/v1/notifications", json=payload, headers=headers)
-
-            if response.status_code == 200:
+            if response.status_code // 100 == 2:
                 print({"message": "Notification sent successfully"})
+                logging.info(f"Live update [{LiveUpdateTarget.ALL_USER.name}] Notification sent successfully ({response.status_code}): {first_in_data}")
                 data.pop(0)
             else:
                 print({"error": "Failed to send notification"}, response.status_code)
-        elif(user_target == 'SPECIFIC_USER' and type == 'CCTV'):
+                logging.info(f"Live update [{LiveUpdateTarget.ALL_USER.name}] Failed to send notification ({response.status_code}): {first_in_data}")
+                data.pop(0) #
+
+        elif(user_target in LiveUpdateTarget.__members__ and user_target == LiveUpdateTarget.SPECIFIC_USER.name and type == LiveUpdateType.CCTV.name):
             current_date = datetime.now().strftime('%Y-%m-%d')
             player_ids = get_player_ids_from_log(current_date)
             
@@ -278,17 +288,62 @@ def flush_live_update(data):
                     "headings": {"en": heading}
                 }
 
-                print(f"SENT 2")
-                
-                response = requests.post("https://onesignal.com/api/v1/notifications", json=payload, headers=headers)
+                # print(f"SENT 2")
+                logging.info(f"Live update [{LiveUpdateTarget.SPECIFIC_USER.name}] notification recieved: {first_in_data}")
+                response = requests.post(config.ONESIGNAL_NOTIF_BLAST_ENDPOINT, json=payload, headers=headers)
 
-                if response.status_code == 200:
+                if response.status_code // 100 == 2:
                     print({"message": "Notification sent successfully"})
+                    logging.info(f"Live update [{LiveUpdateTarget.SPECIFIC_USER.name}] Notification sent successfully ({response.status_code}): {first_in_data}")
                     data.pop(0)
                 else:
                     print({"error": "Failed to send notification"}, response.status_code)
+                    logging.info(f"Live update [{LiveUpdateTarget.SPECIFIC_USER.name}] Failed to send notification ({response.status_code}): {first_in_data}")
+                    data.pop(0) #
             else:
                 print("No player IDs found. Skipping notification sending.")
+                logging.info(f"Live update [{LiveUpdateTarget.SPECIFIC_USER.name}] No player IDs found. Skipping notification sending: {first_in_data}")
+                data.pop(0) #
+
+        elif(user_target in LiveUpdateTarget.__members__ and user_target == LiveUpdateTarget.INACTIVE_USER.name and type == LiveUpdateType.CCTV.name):
+            # print('test')
+            concated_dfs = pandas_logics.read_and_concat_csv('output/user_active_log', file_date_reverse=True, sort_timestamp_asc=True)
+            n_hours = LIVE_UPDATE_GET_INACTIVE_USER_FROM_HOUR
+            a, b, c, time = pandas_logics.get_inactive_user(concated_dfs, n_hours)
+            inactive_user_player_ids = a['player_id'].tolist()
+            unique_player_ids = list(set(inactive_user_player_ids))
+
+            if unique_player_ids:
+                payload = {
+                    "app_id": config.ONESIGNAL_APP_ID,
+                    "data": {
+                        "id": liveupdate_id,
+                        "heading": heading,
+                        "message": message,
+                        "type": "liveupdate"
+                    },
+                    "include_player_ids": unique_player_ids,
+                    "contents": {"en": message},
+                    "headings": {"en": heading}
+                }
+
+                # print(f"SENT 3")
+                logging.info(f"Live update [{LiveUpdateTarget.INACTIVE_USER.name}] notification recieved: {first_in_data}")
+                response = requests.post(config.ONESIGNAL_NOTIF_BLAST_ENDPOINT, json=payload, headers=headers)
+
+                if response.status_code // 100 == 2:
+                    print({"message": "Notification sent successfully"})
+                    logging.info(f"Live update [{LiveUpdateTarget.INACTIVE_USER.name}] Notification sent successfully ({response.status_code}): {first_in_data}")
+                    data.pop(0)
+                else:
+                    print({"error": "Failed to send notification"}, response.status_code)
+                    logging.info(f"Live update [{LiveUpdateTarget.INACTIVE_USER.name}] Failed to send notification ({response.status_code}): {first_in_data}")
+                    data.pop(0) #
+            else:
+                print("No player IDs found. Skipping notification sending.")
+                logging.info(f"Live update [{LiveUpdateTarget.INACTIVE_USER.name}] No player IDs found. Skipping notification sending: {first_in_data}")
+                data.pop(0) #
+
 
     else:
         return None
@@ -475,7 +530,7 @@ def logClick(data):
 def flush_buffer_thread(name, buffer, flush_function, flush_interval, lock):
     while True:
         time.sleep(flush_interval)
-        print(f'flush buffer {name} {len(buffer)}')
+        # print(f'flush buffer {name} {len(buffer)}')
         with lock:
             if buffer:
                 flush_function(buffer)
